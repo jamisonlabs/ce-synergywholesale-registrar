@@ -1,4 +1,18 @@
 <?php
+/**
+ * ClientExec — Synergy Wholesale Registrar Plugin (Extended)
+ *
+ * A fork of the official Clientexec Synergy Wholesale registrar plugin,
+ * extended to support the full Synergy Wholesale API v3.x.
+ *
+ * @author    Jamison Labs <hello@jamisonlabs.com>
+ * @copyright 2026 Jamison Labs
+ * @license   MIT
+ * @link      https://github.com/jamisonlabs/ce-synergywholesale-registrar
+ *
+ * Based on the original plugin by Clientexec Inc.
+ * https://github.com/clientexec/synergywholesale-registrar
+ */
 
 require_once 'modules/admin/models/RegistrarPlugin.php';
 
@@ -52,7 +66,8 @@ class PluginSynergywholesale extends RegistrarPlugin
                     '* ' . lang('Email Forwarding') . '<br>',
                     '* ' . lang('Cancel In-Progress Transfer') . '<br>',
                     '* ' . lang('Retrieve EPP Code') . '<br>',
-                    '* ' . lang('.AU Eligibility & Change of Registrant'),
+                    '* ' . lang('.AU Eligibility & Change of Registrant') . '<br>',
+                    '<br><em>' . lang('Developed by Jamison Labs') . ' &mdash; <a href="https://jamisonlabs.com" target="_blank">jamisonlabs.com</a></em>',
                 ]),
                 'value' => '',
             ],

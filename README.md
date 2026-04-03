@@ -80,6 +80,28 @@ git merge upstream/master
 
 ---
 
+## Credits
+
+This plugin was developed by [Jamison Labs](https://jamisonlabs.com) and would not have been possible without the following open-source reference implementations:
+
+| Repository | Used for |
+|---|---|
+| [clientexec/synergywholesale-registrar](https://github.com/clientexec/synergywholesale-registrar) | Upstream base plugin (forked) |
+| [clientexec/sample-registrar](https://github.com/clientexec/sample-registrar) | CE plugin contract / method signatures |
+| [clientexec/enom-registrar](https://github.com/clientexec/enom-registrar) | `getTLDsAndPrices()` pricing array format |
+| [clientexec/namesilo-registrar](https://github.com/clientexec/namesilo-registrar) | `fetchDomains()` metadata structure |
+| [clientexec/namecheap-registrar](https://github.com/clientexec/namecheap-registrar) | IDPROTECT at registration pattern |
+| [clientexec/joker-registrar](https://github.com/clientexec/joker-registrar) | `getGeneralInfo()` return key set |
+| [clientexec/openprovider-registrar](https://github.com/clientexec/openprovider-registrar) | DNSSEC management pattern |
+| [clientexec/realtimeregister-registrar](https://github.com/clientexec/realtimeregister-registrar) | Glue record / child host management |
+| [clientexec/opensrs-registrar](https://github.com/clientexec/opensrs-registrar) | URL / email forwarding pattern |
+| [clientexec/domainnameapi-registrar](https://github.com/clientexec/domainnameapi-registrar) | `setRegistrarLock()` lock param usage |
+| [clientexec/connectreseller-registrar](https://github.com/clientexec/connectreseller-registrar) | Transfer cancel / restore domain flow |
+| [dondominio/clientexec-plugin](https://github.com/dondominio/clientexec-plugin) | AU eligibility / change of registrant |
+| [SynergyWholesale/WHMCS-Domains-Module](https://github.com/SynergyWholesale/WHMCS-Domains-Module) | Authoritative SW SOAP API field names |
+
+---
+
 ## License
 
 MIT — see [LICENSE](LICENSE)
