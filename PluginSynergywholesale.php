@@ -107,44 +107,25 @@ class PluginSynergywholesale extends RegistrarPlugin
             return $tlds;
         }
 
+        // CE expects: $tlds[$tld]['pricing']['register'|'transfer'|'renew'] = float
+        // The TLD key has no leading dot; CE stores the base 1-year price.
         foreach ($pricingList as $item) {
             $tld = ltrim((string) $item->tld, '.');
             if (empty($tld)) {
                 continue;
             }
 
-            $minPeriod = isset($item->minPeriod) ? (int) $item->minPeriod : 1;
-            $maxPeriod = isset($item->maxPeriod) ? (int) $item->maxPeriod : 10;
+            $minPeriod   = isset($item->minPeriod) ? (int) $item->minPeriod : 1;
+            $regField    = 'register_' . $minPeriod . '_year';
+            $registerPrice = !empty($item->$regField) ? (float) $item->$regField : 0;
 
-            $registerPricing = [];
-            $renewPricing    = [];
-            $transferPricing = [];
-
-            for ($year = $minPeriod; $year <= $maxPeriod; $year++) {
-                $regField = 'register_' . $year . '_year';
-                if (!empty($item->$regField)) {
-                    $registerPricing[$year] = (float) $item->$regField;
-                }
-                if (!empty($item->renew)) {
-                    $renewPricing[$year] = round((float) $item->renew * $year, 2);
-                }
-            }
-
-            // Transfer is a single 1-year fee
-            if (!empty($item->transfer)) {
-                $transferPricing[1] = (float) $item->transfer;
-            }
-
-            if (empty($registerPricing)) {
+            if ($registerPrice <= 0) {
                 continue;
             }
 
-            $tlds[] = [
-                'tld'      => '.' . $tld,
-                'register' => $registerPricing,
-                'transfer' => $transferPricing,
-                'renew'    => $renewPricing,
-            ];
+            $tlds[$tld]['pricing']['register'] = $registerPrice;
+            $tlds[$tld]['pricing']['renew']    = !empty($item->renew)    ? (float) $item->renew    : $registerPrice;
+            $tlds[$tld]['pricing']['transfer'] = !empty($item->transfer) ? (float) $item->transfer : $registerPrice;
         }
 
         return $tlds;
@@ -265,6 +246,15 @@ class PluginSynergywholesale extends RegistrarPlugin
         $response = $this->makeRequest($command, $arguments);
         if ($response->status != 'OK') {
             throw new CE_Exception($response->errorMessage);
+        }
+
+        // Enable ID protection if ordered as an add-on at checkout
+        if (!empty($params['package_addons']['IDPROTECT'])) {
+            try {
+                $this->makeRequest('enableIDProtection', ['domainName' => $arguments['domainName']]);
+            } catch (CE_Exception $e) {
+                CE_Lib::log(4, 'SW: Could not enable ID protection after registration: ' . $e->getMessage());
+            }
         }
     }
 
@@ -391,8 +381,17 @@ class PluginSynergywholesale extends RegistrarPlugin
             $response->status == 'ERR_DOMAININFO_FAILED'
             && $response->errorMessage == 'Domain Info Failed - Unable to retrieve domain id'
         ) {
-            $data['registrationstatus'] = 'RGP';
-            return $data;
+            return [
+                'id'                 => '',
+                'domain'             => $params['sld'] . '.' . $params['tld'],
+                'expiration'         => '',
+                'registrationstatus' => 'RGP',
+                'purchasestatus'     => 'RGP',
+                'autorenew'          => false,
+                'idprotect'          => false,
+                'is_registered'      => false,
+                'is_expired'         => true,
+            ];
         }
 
         $data['id']                 = $response->domainRoid;
@@ -435,7 +434,16 @@ class PluginSynergywholesale extends RegistrarPlugin
             }
         }
 
-        return [$domains, []];
+        $total    = count($domains);
+        $metaData = [
+            'total'      => $total,
+            'start'      => 0,
+            'end'        => max(0, $total - 1),
+            'numPerPage' => $total,
+            'next'       => null,
+        ];
+
+        return [$domains, $metaData];
     }
 
     // =========================================================================
