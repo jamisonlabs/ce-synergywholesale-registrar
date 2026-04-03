@@ -8,13 +8,14 @@
  *
  * Install:  Copy to the CE root directory alongside config.php.
  * Cron:     0 16 * * * /usr/local/bin/ea-php84 /home/clubhost/public_html/clientexec/sw-pricing-cron.php >> /var/log/sw-pricing-sync.log 2>&1
- *           (16:00 UTC = 02:00 AEST / 03:00 AEDT — runs daily, script checks day-of-month)
+ *           (16:00 UTC = 02:00 AEST / 03:00 AEDT — runs daily, script checks interval)
  *
  * Settings are controlled from CE Admin:
  *   Settings → Plugins → Registrars → Synergy Wholesale
- *   - Auto Pricing Sync:  Yes / No
- *   - Pricing Sync Day:   Day of month (1–28)
- *   - Pricing Margin:     Percentage markup over SW cost price
+ *   - Auto Pricing Sync:      Yes / No
+ *   - Pricing Sync Interval:  Number (e.g. 1)
+ *   - Pricing Sync Period:    day / week / month / year
+ *   - Pricing Margin:         Percentage markup over SW cost price
  *
  * @version 1.0.0
  * @author  Jamison Labs <hello@jamisonlabs.com>
@@ -59,13 +60,15 @@ $setting = function (string $name) use ($db): ?string {
 };
 
 $enabled    = $setting('plugin_synergywholesale_Auto Pricing Sync');
-$syncDay    = (int) ($setting('plugin_synergywholesale_Pricing Sync Day') ?: 1);
+$interval   = max(1, (int) ($setting('plugin_synergywholesale_Pricing Sync Interval') ?: 1));
+$period     = strtolower(trim((string) ($setting('plugin_synergywholesale_Pricing Sync Period') ?: 'month')));
 $margin     = (float) ($setting('plugin_synergywholesale_Pricing Margin') ?: 10);
 $resellerID = (int) $setting('plugin_synergywholesale_Reseller ID');
 $apiKey     = (string) $setting('plugin_synergywholesale_API Key');
+$lastRun    = (int) ($setting('plugin_synergywholesale_Pricing Sync Last Run') ?: 0);
 
 // ---------------------------------------------------------------------------
-// Check enabled + day-of-month
+// Check enabled
 // ---------------------------------------------------------------------------
 
 if ($enabled !== '1') {
@@ -73,13 +76,30 @@ if ($enabled !== '1') {
     exit(0);
 }
 
-$today = (int) date('j');
-if ($today !== $syncDay) {
-    $log("Not sync day (today={$today}, configured={$syncDay}) — exiting");
+// ---------------------------------------------------------------------------
+// Calculate interval in seconds and check if due
+// ---------------------------------------------------------------------------
+
+$periodSeconds = match ($period) {
+    'day'   => 86400,
+    'week'  => 604800,
+    'month' => 2592000,   // 30 days
+    'year'  => 31536000,  // 365 days
+    default => 2592000,
+};
+
+$intervalSeconds = $interval * $periodSeconds;
+$nextRun         = $lastRun + $intervalSeconds;
+$now             = time();
+
+if ($now < $nextRun) {
+    $lastRunStr = $lastRun ? date('Y-m-d H:i:s', $lastRun) : 'never';
+    $nextRunStr = date('Y-m-d H:i:s', $nextRun);
+    $log("Not due yet. Last run: {$lastRunStr} | Next run: {$nextRunStr} — exiting");
     exit(0);
 }
 
-$log("Sync day matched (day {$syncDay}), running with {$margin}% margin");
+$log("Sync due (every {$interval} {$period}(s), margin {$margin}%) — running");
 
 // ---------------------------------------------------------------------------
 // Call Synergy Wholesale API
@@ -159,7 +179,7 @@ foreach ($response->pricing as $item) {
                 $cycle['price']    = $newReg;
                 $cycle['renew']    = $newRenew;
                 $cycle['transfer'] = $newXfer;
-                $changed = true;
+                $changed           = true;
             }
         }
         unset($cycle);
@@ -182,6 +202,17 @@ foreach ($response->pricing as $item) {
     }
     $stmt->close();
 }
+
+// ---------------------------------------------------------------------------
+// Record last run timestamp
+// ---------------------------------------------------------------------------
+
+$ts   = (string) $now;
+$name = 'plugin_synergywholesale_Pricing Sync Last Run';
+$stmt = $db->prepare('INSERT INTO setting (name, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?');
+$stmt->bind_param('sss', $name, $ts, $ts);
+$stmt->execute();
+$stmt->close();
 
 $log("Done. Updated: {$updated} | Unchanged: {$noChange} | TLD not in CE: {$notFound} | Errors: {$errors}");
 $db->close();

@@ -50,10 +50,17 @@ class PluginSynergywholesale extends RegistrarPlugin
                 'description' => lang('Automatically sync TLD pricing from Synergy Wholesale on a schedule. Requires the cron script to be configured on the server.'),
                 'value'       => '0',
             ],
-            lang('Pricing Sync Day') => [
+            lang('Pricing Sync Interval') => [
                 'type'        => 'text',
-                'description' => lang('Day of month to run auto pricing sync (1–28). Default: 1.'),
+                'description' => lang('How often to sync pricing (number). e.g. 1'),
                 'value'       => '1',
+            ],
+            lang('Pricing Sync Period') => [
+                'type'        => 'dropdown',
+                'multiple'    => false,
+                'getValues'   => 'getPricingSyncPeriodValues',
+                'description' => lang('Period unit for auto pricing sync.'),
+                'value'       => 'month',
             ],
             lang('Pricing Margin') => [
                 'type'        => 'text',
@@ -84,6 +91,19 @@ class PluginSynergywholesale extends RegistrarPlugin
     // =========================================================================
     // PRICING SYNC
     // =========================================================================
+
+    /**
+     * Returns period options for the Pricing Sync Period dropdown.
+     */
+    public function getPricingSyncPeriodValues()
+    {
+        return [
+            'day'   => lang('Day(s)'),
+            'week'  => lang('Week(s)'),
+            'month' => lang('Month(s)'),
+            'year'  => lang('Year(s)'),
+        ];
+    }
 
     /**
      * Import TLD pricing from Synergy Wholesale.
