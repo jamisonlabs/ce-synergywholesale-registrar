@@ -95,7 +95,19 @@ class PluginSynergywholesale extends RegistrarPlugin
 
         $tlds = [];
 
-        foreach ($response->pricing as $item) {
+        // SW SOAP API may return the list under 'pricing' or 'domainPricingList'
+        $pricingList = null;
+        if (!empty($response->pricing)) {
+            $pricingList = $response->pricing;
+        } elseif (!empty($response->domainPricingList)) {
+            $pricingList = $response->domainPricingList;
+        }
+
+        if (empty($pricingList)) {
+            return $tlds;
+        }
+
+        foreach ($pricingList as $item) {
             $tld = ltrim((string) $item->tld, '.');
             if (empty($tld)) {
                 continue;
@@ -388,7 +400,7 @@ class PluginSynergywholesale extends RegistrarPlugin
         $data['expiration']         = date('m/d/Y', strtotime($response->domain_expiry));
         $data['registrationstatus'] = $response->status;
         $data['purchasestatus']     = $response->status;
-        $data['autorenew']          = ($response->autoRenew != 'off');
+        $data['autorenew']          = isset($response->autoRenew) && $response->autoRenew != 'off';
         $data['idprotect']          = isset($response->idProtect) && strtolower($response->idProtect) === 'enabled';
         $data['is_registered']      = false;
         $data['is_expired']         = false;
@@ -438,8 +450,10 @@ class PluginSynergywholesale extends RegistrarPlugin
         }
 
         $data = [];
-        foreach ($response->nameServers as $nameserver) {
-            $data[] = $nameserver;
+        if (!empty($response->nameServers)) {
+            foreach ($response->nameServers as $nameserver) {
+                $data[] = $nameserver;
+            }
         }
         $data['usesDefault'] = ($response->dnsConfig == 4);
         $data['hasDefault']  = true;
@@ -524,14 +538,14 @@ class PluginSynergywholesale extends RegistrarPlugin
             'registrant_organisation' => $params['Registrant_Company'],
             'registrant_firstname'    => $params['Registrant_FirstName'],
             'registrant_lastname'     => $params['Registrant_LastName'],
-            'registrant_address'      => [$params['Registrant_Address1'], $params['Registrant_Address2']],
+            'registrant_address'      => array_filter([$params['Registrant_Address1'], $params['Registrant_Address2'] ?? '']),
             'registrant_email'        => $params['Registrant_EmailAddress'],
             'registrant_suburb'       => $params['Registrant_City'],
             'registrant_state'        => $params['Registrant_StateProvince'],
             'registrant_country'      => $params['Registrant_Country'],
             'registrant_postcode'     => $params['Registrant_PostalCode'],
             'registrant_phone'        => $this->validatePhone($params['Registrant_Phone'], $params['Registrant_Country']),
-            'registrant_fax'          => $this->validatePhone($params['Registrant_Fax'], $params['Registrant_Country']),
+            'registrant_fax'          => $this->validatePhone($params['Registrant_Fax'] ?? '', $params['Registrant_Country']),
         ];
 
         $response = $this->makeRequest('updateContact', $arguments);
@@ -562,8 +576,7 @@ class PluginSynergywholesale extends RegistrarPlugin
     public function setRegistrarLock($params)
     {
         $domainName = $params['sld'] . '.' . $params['tld'];
-        $response   = $this->makeRequest('domainInfo', ['domainName' => $domainName]);
-        $command    = ($response->domain_status === 'clientTransferProhibited') ? 'unlockDomain' : 'lockDomain';
+        $command    = !empty($params['lock']) ? 'lockDomain' : 'unlockDomain';
         $this->makeRequest($command, ['domainName' => $domainName]);
     }
 
@@ -632,7 +645,7 @@ class PluginSynergywholesale extends RegistrarPlugin
         }
 
         $records = [];
-        foreach ($response->records as $row) {
+        foreach ($response->records ?? [] as $row) {
             if (in_array($row->type, ['NS', 'SOA'])) {
                 continue;
             }
@@ -665,7 +678,7 @@ class PluginSynergywholesale extends RegistrarPlugin
             throw new CE_Exception($response->errorMessage);
         }
 
-        foreach ($response->records as $row) {
+        foreach ($response->records ?? [] as $row) {
             if (in_array($row->type, $this->dnsTypes)) {
                 $this->makeRequest('deleteDNSRecord', [
                     'domainName' => $domainName,
@@ -1042,7 +1055,7 @@ class PluginSynergywholesale extends RegistrarPlugin
 
     private function validatePhone($phone, $country)
     {
-        $phone = preg_replace('/[^\d]/', '', $phone);
+        $phone = preg_replace('/[^\d]/', '', (string) $phone);
 
         if ($phone === '') {
             return $phone;
