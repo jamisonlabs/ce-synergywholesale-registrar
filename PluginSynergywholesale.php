@@ -5,6 +5,7 @@
  * A fork of the official Clientexec Synergy Wholesale registrar plugin,
  * extended to support the full Synergy Wholesale API v3.x.
  *
+ * @version   1.0.0
  * @author    Jamison Labs <hello@jamisonlabs.com>
  * @copyright 2026 Jamison Labs
  * @license   MIT
