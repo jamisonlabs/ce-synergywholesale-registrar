@@ -45,6 +45,21 @@ class PluginSynergywholesale extends RegistrarPlugin
                 'description' => lang('Enter your API Key.'),
                 'value'       => '',
             ],
+            lang('Auto Pricing Sync') => [
+                'type'        => 'yesno',
+                'description' => lang('Automatically sync TLD pricing from Synergy Wholesale on a schedule. Requires the cron script to be configured on the server.'),
+                'value'       => '0',
+            ],
+            lang('Pricing Sync Day') => [
+                'type'        => 'text',
+                'description' => lang('Day of month to run auto pricing sync (1–28). Default: 1.'),
+                'value'       => '1',
+            ],
+            lang('Pricing Margin') => [
+                'type'        => 'text',
+                'description' => lang('Percentage markup to apply over Synergy Wholesale cost prices during auto sync. Default: 10.'),
+                'value'       => '10',
+            ],
 
             lang('Actions') => [
                 'type'        => 'hidden',
