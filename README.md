@@ -30,6 +30,8 @@ A fork of the [official Clientexec Synergy Wholesale registrar plugin](https://g
 - **SRV DNS record type** support
 - **.AU eligibility & Change of Registrant** — `getDomainEligibilityDetails` / `initiateAUCOR`
 - **Transfer cancel** — `transferCancel`
+- **Auto Pricing Sync** — scheduled cron script syncs TLD prices from SW at a configurable interval with a percentage margin markup
+- **SW Specials support** — optionally applies active Synergy Wholesale sale prices daily, reverting automatically once the sale window closes
 
 ---
 
@@ -45,15 +47,81 @@ A fork of the [official Clientexec Synergy Wholesale registrar plugin](https://g
 
 ## Installation
 
-1. Copy the `PluginSynergywholesale.php` file and `resource/` directory into your ClientExec installation:
+1. Copy `PluginSynergywholesale.php` and the `resource/` directory into your ClientExec installation:
    ```
    /path/to/clientexec/plugins/registrars/synergywholesale/
    ```
-2. In the CE admin panel, go to **Settings > Domain Registrars > Synergy Wholesale**.
-3. Enter your **Reseller ID** and **API Key**.
-4. Click **Save**.
+2. In the CE admin panel go to **Settings → Plugins → Registrars → Synergy Wholesale**.
+3. Enter your **Reseller ID** and **API Key**, then click **Save**.
+4. Ensure your server's outbound IP is whitelisted in the [Synergy Wholesale Management System](https://manage.synergywholesale.com) under **Account → API Settings**.
 
 > **Upgrading from the official plugin:** This fork is a drop-in replacement. No database changes required.
+
+---
+
+## Auto Pricing Sync
+
+The plugin ships with a standalone cron script (`sw-pricing-cron.php`) that fetches live pricing from the Synergy Wholesale API and updates all matching CE domain product prices automatically.
+
+### How it works
+
+- The script reads its configuration directly from the CE plugin settings (no separate config file).
+- On each cron invocation it checks whether the configured sync interval has elapsed. If not due, it exits immediately.
+- When due, it calls `getDomainPricing`, applies your margin markup, and updates the `pricing` blob for every CE domain package whose `planname` matches a SW TLD extension.
+- After a successful run the timestamp is recorded in the CE settings table so the next interval is calculated correctly.
+- A human-readable last-run status string is also written to the CE settings table (key: `plugin_synergywholesale_Pricing Sync Last Status`) for easy querying.
+
+### Plugin settings
+
+Configure all options under **Settings → Plugins → Registrars → Synergy Wholesale**:
+
+| Setting | Type | Description |
+|---------|------|-------------|
+| **Auto Pricing Sync** | Yes / No | Master switch. When off the cron script exits immediately without doing anything. |
+| **Pricing Sync Interval** | Number | How many periods between full syncs. e.g. `1` |
+| **Pricing Sync Period** | Text | Period unit: `day`, `week`, `month`, or `year`. Default: `month` |
+| **Pricing Margin** | Number | Percentage markup applied over SW cost prices. e.g. `10` = 10% markup |
+| **Apply SW Specials** | Yes / No | When enabled, active SW sale prices are applied on every daily cron run and revert automatically once the sale window ends (see below). |
+
+### Cron setup
+
+Copy `sw-pricing-cron.php` to the CE root directory (alongside `config.php`), then add a cron entry on your server:
+
+```
+0 16 * * * /usr/local/bin/ea-php84 /path/to/clientexec/sw-pricing-cron.php >> /var/log/sw-pricing-sync.log 2>&1
+```
+
+> **Time choice:** 16:00 UTC = 02:00 AEST / 03:00 AEDT. Adjust to suit your timezone. The script uses an interval + last-run check, so the cron schedule just needs to be at least as frequent as your shortest sync period (daily is recommended, especially when specials are enabled).
+
+Replace `/usr/local/bin/ea-php84` with your server's PHP binary path and `/path/to/clientexec/` with your CE document root.
+
+### Structured log output
+
+Every log line is prefixed with a level tag for easy grepping:
+
+```
+[2026-04-03 16:00:01] [INFO]  SW Pricing Sync starting
+[2026-04-03 16:00:02] [INFO]  SW API responded OK — processing pricing
+[2026-04-03 16:00:04] [SALE]  Active sale for .com (2026-04-01 – 2026-04-07): reg=5.99, renew=9.99, xfer=5.99
+[2026-04-03 16:00:05] [INFO]  Done (full-sync). Updated: 45 | Unchanged: 467 | Specials applied: 3 | TLD not in CE: 2 | Errors: 0
+```
+
+Log levels: `[INFO]` `[WARN]` `[ERROR]` `[SALE]`
+
+To check the last run result directly from MySQL:
+```sql
+SELECT value FROM setting WHERE name = 'plugin_synergywholesale_Pricing Sync Last Status';
+```
+
+### SW Specials (Option B)
+
+Synergy Wholesale occasionally runs time-limited sale prices on specific TLDs. When **Apply SW Specials** is enabled:
+
+- The cron script runs a daily API check **regardless** of the configured sync interval.
+- For each TLD, if an active sale window is found (`start_sale_date` ≤ today ≤ `end_sale_date`), sale prices are applied instead of standard prices.
+- When the sale window closes, the next daily run automatically restores standard pricing — no manual intervention required.
+- TLDs with no active sale are skipped on specials-only runs (standard pricing is not unnecessarily re-written).
+- Full interval syncs (e.g. monthly) still run on schedule in addition to daily specials checks.
 
 ---
 
