@@ -6,6 +6,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.0.1] — 2026-04-03
+
+### Added
+
+- **Auto Pricing Sync** — new cron script (`sw-pricing-cron.php`) reads interval, period, margin, and API credentials from CE registrar plugin settings and updates all CE domain package prices automatically on schedule.
+- **Pricing Sync settings** — `Auto Pricing Sync` (yes/no), `Pricing Sync Interval` (number), `Pricing Sync Period` (text: day/week/month/year), `Pricing Margin` (% markup) added to registrar plugin settings.
+- **Apply SW Specials** (yes/no) — when enabled the cron runs daily and applies active Synergy Wholesale sale prices within their date window; prices revert to standard automatically once the sale ends.
+- **Structured logging** — cron log output uses `[INFO]` / `[WARN]` / `[ERROR]` / `[SALE]` prefixes for easy grepping.
+- **Last-status CE setting** — after each run, `plugin_synergywholesale_Pricing Sync Last Status` is written to the CE `setting` table (format: `OK | YYYY-MM-DD HH:MM:SS | Updated: N | Unchanged: N | Specials applied: N | TLD not in CE: N | Errors: N`).
+
+### Fixed
+
+- `Pricing Sync Period` field was declared as `dropdown` type which does not render in CE 7.0.1 registrar plugin settings; changed to `text` type with an inline description of accepted values.
+- Removed `getPricingSyncPeriodValues()` helper method (no longer needed).
+
+---
+
 ## [1.0.0] — 2026-04-03
 
 Initial release of the Jamison Labs extended fork.

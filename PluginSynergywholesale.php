@@ -5,7 +5,7 @@
  * A fork of the official Clientexec Synergy Wholesale registrar plugin,
  * extended to support the full Synergy Wholesale API v3.x.
  *
- * @version   1.0.0
+ * @version   1.0.1
  * @author    Jamison Labs <hello@jamisonlabs.com>
  * @copyright 2026 Jamison Labs
  * @license   MIT
@@ -56,16 +56,19 @@ class PluginSynergywholesale extends RegistrarPlugin
                 'value'       => '1',
             ],
             lang('Pricing Sync Period') => [
-                'type'        => 'dropdown',
-                'multiple'    => false,
-                'getValues'   => 'getPricingSyncPeriodValues',
-                'description' => lang('Period unit for auto pricing sync.'),
+                'type'        => 'text',
+                'description' => lang('Period unit for auto pricing sync: day, week, month, or year. Default: month.'),
                 'value'       => 'month',
             ],
             lang('Pricing Margin') => [
                 'type'        => 'text',
                 'description' => lang('Percentage markup to apply over Synergy Wholesale cost prices during auto sync. Default: 10.'),
                 'value'       => '10',
+            ],
+            lang('Apply SW Specials') => [
+                'type'        => 'yesno',
+                'description' => lang('When enabled, active Synergy Wholesale sale prices are applied daily and revert automatically once the sale period ends.'),
+                'value'       => '0',
             ],
 
             lang('Actions') => [
@@ -91,19 +94,6 @@ class PluginSynergywholesale extends RegistrarPlugin
     // =========================================================================
     // PRICING SYNC
     // =========================================================================
-
-    /**
-     * Returns period options for the Pricing Sync Period dropdown.
-     */
-    public function getPricingSyncPeriodValues()
-    {
-        return [
-            'day'   => lang('Day(s)'),
-            'week'  => lang('Week(s)'),
-            'month' => lang('Month(s)'),
-            'year'  => lang('Year(s)'),
-        ];
-    }
 
     /**
      * Import TLD pricing from Synergy Wholesale.
